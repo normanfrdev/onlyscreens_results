@@ -6,7 +6,7 @@ from pathlib import Path
 
 st.set_page_config(page_title="Voting Tracker", layout="wide")
 st.title("Графа с OnlyScreens (30.06.2025)")
-
+st.badge("Сделано эстонским гандоном.")
 # -- Settings --
 UPLOADS_DIR = "gamejam"
 def parse_voting_file(file_path):
