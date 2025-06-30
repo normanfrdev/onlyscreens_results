@@ -21,24 +21,32 @@ def parse_voting_file(file_path):
             break
     if last_line.startswith("📅"):
         full_label = last_line.replace("📅", "").replace("Последнее обновление:", "").strip()
-        # full_label looks like "30.06.2025 10:19"
-        # Trim to only time part
-        snapshot_label = full_label.split()[-1]  # take last part after space, e.g. "10:19"
+        snapshot_label = full_label.split()[-1]  # only time
     else:
         snapshot_label = file_path.stem
 
     projects = []
-    pattern = r"Проект: (.*?)\n💫 Баллы: (\d+)\n⭐️ Средний балл: ([\d\.]+)"
-    matches = re.findall(pattern, text)
-    for match in matches:
-        name, points, avg = match
+    # Updated pattern to also capture rank (место)
+    # Rank is like 🥇 1 место, 🥈 2 место, 🥉 3 место or 🏅 N место
+    rank_pattern = r"[🥇🥈🥉🏅] (\d+) место"
+    project_pattern = r"Проект: (.*?)\n💫 Баллы: (\d+)\n⭐️ Средний балл: ([\d\.]+)"
+
+    # Find all rank positions
+    rank_matches = re.findall(rank_pattern, text)
+    # Find all projects info
+    project_matches = re.findall(project_pattern, text)
+
+    # Just in case counts mismatch, safer to zip min length
+    for rank, (name, points, avg) in zip(rank_matches, project_matches):
         projects.append({
+            'rank': int(rank),
             'project': name.strip(),
             'points': int(points),
             'average': float(avg),
             'snapshot': snapshot_label
         })
     return projects
+
 
 
 
@@ -63,6 +71,7 @@ project_df = df[df['project'] == project].sort_values('snapshot')
 
 # -- Plot --
 fig = go.Figure()
+
 fig.add_trace(go.Scatter(
     x=project_df['snapshot'],
     y=project_df['points'],
@@ -71,6 +80,7 @@ fig.add_trace(go.Scatter(
     line=dict(color='royalblue', width=2),
     hovertemplate='%{y}'
 ))
+
 fig.add_trace(go.Scatter(
     x=project_df['snapshot'],
     y=project_df['average'],
@@ -80,14 +90,31 @@ fig.add_trace(go.Scatter(
     hovertemplate='%{y}'
 ))
 
+fig.add_trace(go.Scatter(
+    x=project_df['snapshot'],
+    y=project_df['rank'],
+    mode='lines+markers',
+    name='Место',
+    line=dict(color='green', width=2, dash='dot'),
+    hovertemplate='%{y}',
+    yaxis='y2'
+))
+
 fig.update_layout(
     title=f"Голосование для: {project}",
     xaxis_title="Время",
-    yaxis_title="Очки",
+    yaxis_title="Очки / Средний балл",
+    yaxis2=dict(
+        title='Место',
+        overlaying='y',
+        side='right',
+        autorange='reversed'  # So rank 1 is at the top
+    ),
     legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
     hovermode='x unified',
     height=600
 )
+
 
 st.plotly_chart(fig, use_container_width=True)
 
